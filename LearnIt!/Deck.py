@@ -22,6 +22,9 @@ class Deck:
     def getCard(self, index):
         return self.cards[index]
     
+    def getCardCount(self):
+        return len(self.cards)
+    
     def saveDeck(self, filename):
         with open(filename, 'w') as outfile:
             json.dump(self, outfile, default=lambda o: o.__dict__, sort_keys=True, indent=4)

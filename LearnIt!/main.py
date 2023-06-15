@@ -1,5 +1,6 @@
 import os
 import curses
+import random
 from curses import wrapper
 from Card import Card
 from Deck import Deck
@@ -29,8 +30,9 @@ def loadDeck(stdscr):
         stdscr.addstr(3, 0, f"Deck {fileName} not found.")
         stdscr.addstr(4, 0, "Press enter to continue")
         stdscr.getch(5, 0)
-    deckMenu(stdscr, deck)
     stdscr.clear()
+    stdscr.refresh()
+    return deck
 
 def createDeck(stdscr):
     stdscr.clear()
@@ -51,7 +53,9 @@ def createDeck(stdscr):
     stdscr.addstr(3, 0, f"Deck {deck.name} created successfully!")
     stdscr.addstr(4, 0, "Press enter to continue")
     stdscr.getch(5, 0)
-    deckMenu(stdscr, deck)
+    stdscr.clear()
+    stdscr.refresh()
+    return deck
 
 def deckMenu(stdscr, deck):
     stdscr.clear()
@@ -88,6 +92,8 @@ def deckMenu(stdscr, deck):
                     stdscr.addstr(7, 0, "There are no cards in this deck to study")
                     userInput = None
                     stdscr.refresh()
+                else:
+                    studyDeck(stdscr, deck)
                 continue
             elif userInput == '4':
                 fileName = os.path.join(os.getcwd(), 'data', deck.name + '.json')
@@ -111,11 +117,12 @@ def viewDeck(stdscr, deck):
     index = 0
     while running:
         stdscr.addstr(0,0, "Press a to go to the previous card, d to go to the next card, or q to quit:")
-        stdscr.addstr(1,0, f"Card {index + 1} of {len(deck.cards)}")
+        stdscr.addstr(1,0, f"Card {index + 1} of {deck.getCardCount()}")
         stdscr.addstr(2,0, deck.getCard(index).getQuestion())
         choices = deck.getCard(index).getChoices()
         for i in range(len(choices)):
             stdscr.addstr(4 + (2*i), 4, f"({choices[i][0]}) {choices[i][1]}")
+        stdscr.addstr(4 + (2*len(choices)), 0, f"Answer: {deck.getCard(index).getAnswer()}")
         userInput = None
         while userInput == None:
             userInput = chr(stdscr.getch(0, 77))
@@ -123,9 +130,9 @@ def viewDeck(stdscr, deck):
                 if index > 0:
                     index -= 1
                 else:
-                    index = len(deck.cards) - 1
+                    index = deck.getCardCount() - 1
             elif userInput == 'd':
-                if index < len(deck.cards) - 1:
+                if index < deck.getCardCount() - 1:
                     index += 1
                 else:
                     index = 0
@@ -158,31 +165,105 @@ def newCard(stdscr):
             break
     while choices_str == None:
         stdscr.addstr(3, 0, "Please enter your choices separated by \#:")
-        choices_str = stdscr.getstr(5, 0)
+        choices_str = stdscr.getstr(5, 0).decode('utf-8')
         if len(choices_str) == 0:
             stdscr.deleteln()
             stdscr.addstr(4, 0, "Please enter a valid choice.")
             choices_str = None
             stdscr.refresh()
         else:
-            choices_str = choices_str.decode('utf-8')
             break
     while answer == None:
-        stdscr.addstr(6, 0, "Please enter the letter to correct answer in the order which you entered the choices:")
-        answer = chr(stdscr.getch(8, 0))
-        if len(answer) == 0:
+        stdscr.addstr(6, 0, "Please enter the number to the correct answer(s) in the order which you entered the choices, seperated by commas:")
+        answer_str = stdscr.getstr(8, 0).decode('utf-8')
+        if len(answer_str) == 0:
             stdscr.deleteln()
             stdscr.addstr(7, 0, "Please enter a valid answer.")
-            answer = None
+            answer_str = None
             stdscr.refresh()
         else:
             break
     choices_str = choices_str.split('\#')
     choices = []
     for i in range(len(choices_str)):
-        choices.append((chr(65+i), choices_str[i]))
+        choices.append((i+1, choices_str[i]))
+    answer = answer_str.split(',')
     card = Card(question, choices, answer)
     return card
+
+def studyDeck(stdscr, deck):
+    stdscr.clear()
+    stdscr.refresh()
+    curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
+    curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
+    incorrect_text = curses.color_pair(1)
+    correct_text = curses.color_pair(2)
+    study_list = []
+    study_order = list(range(deck.getCardCount()))
+    random.shuffle(study_order)
+    for i in study_order:
+        study_list.append(deck.getCard(i))
+    curr_list = []
+    running = True
+    userInput = None
+    while running:
+        if len(study_list) < 11:
+            curr_list = study_list.copy()
+        else:
+            curr_list = study_list[0:10]
+        total_correct = 0
+        for index in range(len(curr_list)):
+            stdscr.addstr(0,0, f"Question {index + 1} of {len(curr_list)}")
+            stdscr.addstr(2,0, curr_list[index].getQuestion())
+            choices = random.sample(curr_list[index].getChoices(), len(curr_list[index].getChoices()))
+            for i in range(len(choices)):
+                stdscr.addstr(4 + (2*i), 4, f"({i+1}) {choices[i][1]}")
+            userInput = None
+            while userInput == None:
+                stdscr.addstr(1, 0, "Please enter your answer seperated by commas (if applicable):")
+                userInput = stdscr.getstr(1, 63).decode('utf-8')
+                if len(userInput) == 0:
+                    stdscr.deleteln()
+                    stdscr.addstr(2, 0, "Please enter a valid answer.")
+                    userInput = None
+                    stdscr.refresh()
+                else:
+                    user_answers = userInput.split(',')
+                    matched_answer = []
+                    for i in range(len(user_answers)):
+                        matched_answer.append(choices[int(user_answers[i])-1][0])
+                    if curr_list[index].checkAnswer(matched_answer) == 2:
+                        total_correct += 1
+                        study_list.remove(curr_list[index])
+                    for i in range(len(choices)):
+                        if choices[i][0] in curr_list[index].getAnswer():
+                            stdscr.addstr(4 + (2*i), 4, f"({i+1}) {choices[i][1]}", correct_text)
+                        else:
+                            stdscr.addstr(4 + (2*i), 4, f"({i+1}) {choices[i][1]}", incorrect_text)
+                stdscr.addch(1,0, ' ')
+                stdscr.deleteln()
+                stdscr.addstr(1, 0, "Press any key to continue.")
+                stdscr.getch(1, 27)
+            stdscr.clear()
+            stdscr.refresh()
+        stdscr.addstr(0, 0, f"You got {total_correct} out of {len(curr_list)} correct!")
+        stdscr.addstr(1, 0, "Would you like to continue studying?")
+        stdscr.addstr(2, 0, "1. Yes")
+        stdscr.addstr(3, 0, "2. No (Return to deck menu)")
+        userInput = None
+        while userInput == None:
+            userInput = chr(stdscr.getch(5,0))
+            if userInput == '1':
+                break
+            elif userInput == '2':
+                running = False
+                break
+            else:
+                stdscr.deleteln()
+                userInput = None
+                stdscr.refresh()
+        stdscr.clear()
+        stdscr.refresh()
 
 def main(stdscr):
     curses.echo()
@@ -202,10 +283,12 @@ def main(stdscr):
         while userInput == None:
             userInput = chr(stdscr.getch(6, 0))
             if userInput == '1':
-                loadDeck(stdscr)
+                deck = loadDeck(stdscr)
+                deckMenu(stdscr, deck)
                 continue
             elif userInput == '2':
-                createDeck(stdscr)
+                deck = createDeck(stdscr)
+                deckMenu(stdscr, deck)
                 continue
             elif userInput == '3':
                 running = False
