@@ -187,7 +187,7 @@ def newCard(stdscr):
     choices = []
     for i in range(len(choices_str)):
         choices.append((i+1, choices_str[i]))
-    answer = answer_str.split(',')
+    answer = list(map(str, answer_str.split(',')))
     card = Card(question, choices, answer)
     return card
 
@@ -222,13 +222,13 @@ def studyDeck(stdscr, deck):
             while userInput == None:
                 stdscr.addstr(1, 0, "Please enter your answer seperated by commas (if applicable):")
                 userInput = stdscr.getstr(1, 63).decode('utf-8')
-                if len(userInput) == 0:
+                user_answers = userInput.split(',')
+                if len(user_answers) == 0 or len(user_answers) > len(choices):
                     stdscr.deleteln()
                     stdscr.addstr(2, 0, "Please enter a valid answer.")
                     userInput = None
                     stdscr.refresh()
                 else:
-                    user_answers = userInput.split(',')
                     matched_answer = []
                     for i in range(len(user_answers)):
                         matched_answer.append(choices[int(user_answers[i])-1][0])
