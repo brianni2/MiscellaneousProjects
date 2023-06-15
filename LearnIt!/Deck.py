@@ -1,8 +1,9 @@
-import Card
 import json
+from Card import Card
 
 class Deck:
-    def __init__(self):
+    def __init__(self, name=None):
+        self.name = name
         self.cards = []
         
     def addCard(self, card):
@@ -10,7 +11,7 @@ class Deck:
         return True
     
     def createCard(self, question, choices, answer):
-        card = Card.Card()
+        card = Card()
         card.createCard(question, choices, answer)
         self.cards.append(card)
         return True
@@ -29,5 +30,9 @@ class Deck:
     def loadDeck(self, filename):
         with open(filename) as infile:
             data = json.load(infile)
-        self.cards = data['cards']
+        self.name = data['name']
+        cards_data = data['cards']
+        for card in cards_data:
+            new_card = Card(card['question'], tuple(card['choices']), card['answer'], card['accuracy'])
+            self.cards.append(new_card)
         return True

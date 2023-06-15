@@ -1,16 +1,10 @@
 class Card:
-    def __init__(self):
-        self.question = ""
-        self.choices = []
-        self.answer = ""
-        self.accuracy = 0
-        
-    def createCard(self, question, choices, answer):
+    def __init__(self, question="", choices=[], answer="", accuracy=0):
         self.question = question
         self.choices = choices
         self.answer = answer
-        return True
-        
+        self.accuracy = accuracy
+
     def getQuestion(self):
         return self.question
     
